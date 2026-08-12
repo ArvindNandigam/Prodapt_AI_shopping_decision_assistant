@@ -1,17 +1,45 @@
-# Editor and OS files
+# ── Credentials & secrets ────────────────────────────────────────────────────
+.env
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+.python-version
+
+# ── uv ───────────────────────────────────────────────────────────────────────
+uv.lock
+
+# ── Testing & coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.log
+
+# ── Catalog snapshot (runtime artifact, not source) ──────────────────────────
+data/catalog_snapshot.json
+
+# ── Streamlit ────────────────────────────────────────────────────────────────
+.streamlit/secrets.toml
+
+# ── Editor & OS ──────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 desktop.ini
 .vscode/
 .idea/
-
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-
-# Node
-node_modules/
-dist/
-build/
+*.swp
+*.swo
