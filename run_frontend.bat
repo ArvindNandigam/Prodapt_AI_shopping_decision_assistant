@@ -1,0 +1,3 @@
+@echo off
+echo Starting Streamlit frontend...
+uv run streamlit run frontend/app.py --server.port 8501

@@ -1,0 +1,3 @@
+@echo off
+echo Starting FastAPI backend...
+uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
