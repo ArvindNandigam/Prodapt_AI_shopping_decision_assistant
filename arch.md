@@ -242,6 +242,17 @@ Notes vs. the original hand-authored schema:
 }
 ```
 
+### Runtime Trust Boundary
+
+The current implementation adds a simple safety layer before and after the LLM call:
+
+1. **Inbound validation**: request fields are sanitized and checked for malformed values, excessive length, invalid price ranges, and unsupported categories.
+2. **Session isolation**: temporary user context is stored in an in-memory TTL store with no persistent profile data.
+3. **Deterministic retrieval**: filtered products come from the catalog cache, which remains the source of truth for authoritative product data.
+4. **LLM comparison**: a trimmed candidate payload is sent to the model, but only after sanitization and without exposing personal or secret data.
+5. **Output validation**: the returned recommendation is checked against product IDs, numeric ranges, rank integrity, and hard constraints before it reaches the UI.
+6. **Fallback**: if validation or the LLM fails, the app returns valid filtered products instead of a fabricated recommendation.
+
 ### Storage Strategy
 
 | Data | Store | Rationale |

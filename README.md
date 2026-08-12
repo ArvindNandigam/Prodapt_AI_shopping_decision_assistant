@@ -92,6 +92,7 @@ The backend adds a lightweight trust boundary around the existing LangChain work
 │   ├── comparator.py    # LangChain LLM comparator skill (LCEL chain)
 │   ├── chat.py          # Conversational chat with session history
 │   ├── models.py        # Pydantic data models
+│   ├── security.py      # Session TTL, audit logging, validation, sanitization, rate limiting
 │   └── config.py        # Settings via pydantic-settings (.env)
 ├── frontend/
 │   └── app.py           # Streamlit UI
@@ -143,7 +144,7 @@ run_backend.bat
 uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The backend starts at `http://localhost:8000`. On startup it fetches the full dummyjson catalog and caches it in memory.
+The backend starts at `http://localhost:8000`. On startup it fetches the full dummyjson catalog and caches it in memory. It also initializes the temporary session store and the local SQLite execution audit DB for non-PII trace logging.
 
 ### 4. Run the frontend
 
@@ -196,7 +197,7 @@ Interactive docs at `http://localhost:8000/docs`.
 uv run pytest tests/ -v
 ```
 
-37 tests covering search logic, catalog PII stripping, comparator fallback/parsing, and all API endpoints.
+42 tests covering search logic, catalog PII stripping, comparator fallback/parsing, security validation, and all API endpoints.
 
 ---
 
@@ -217,3 +218,12 @@ uv run pytest tests/ -v
 ## Architecture
 
 See [`arch.md`](arch.md) for the full architecture document covering data modeling, prompt engineering, security/PII policy, scalability strategy, and the component + sequence diagrams.
+
+Current runtime trust boundaries:
+
+- User input is sanitized before prompt injection prevention and validation
+- Search + candidate retrieval happens in the deterministic layer
+- The LLM comparator is only given filtered, trimmed candidate data
+- Outputs are validated against budget, rating, product-ID, rank, and score constraints
+- Audit events are logged to SQLite without storing secrets, chain-of-thought, or personal data
+- If the LLM fails, the app falls back to a safe recommendation path using valid filtered products
