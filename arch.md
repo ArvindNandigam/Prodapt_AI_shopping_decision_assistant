@@ -111,7 +111,70 @@ Respond with:
 
 ---
 
-## 3. Data Modeling & Database Design
+## 3. Security, Privacy & Execution Accountability
+
+### Security Layer Overview
+
+The application now wraps the existing LangChain comparator and search flow with a minimal but practical security layer. The goal is not to replace the core reasoning harness, but to isolate user inputs, protect the system from misuse, and preserve decision transparency.
+
+### Privacy Controls
+
+- **Incognito sessions**: only temporary session-scoped data is kept in memory.
+- **No long-term profile memory**: names, emails, addresses, and persistent personal preferences are not stored.
+- **Data minimization**: the app retains only the minimum session metadata needed for the current workflow.
+- **PII stripping**: product reviews are sanitized before they reach prompts or logs.
+
+### Security Controls
+
+- **Input validation**: query, category, price, rating, and limit are validated before invoking the agent stack.
+- **Prompt-injection filtering**: user-supplied text is sanitized to reduce override/bypass/security-prompt phrases.
+- **Safe path checks**: sensitive filesystem targets such as `.env`, `SKILL.md`, and traversal attempts like `../..` are rejected.
+- **Rate limiting**: repeated requests from the same client are limited to prevent abuse.
+- **Least privilege design**: existing tool/search modules are reused without granting extra shell/admin capabilities.
+
+### Accountability & Audit Trail
+
+The system records a lightweight non-PII execution trace for each request:
+
+```text
+trace_id
+session_id
+timestamp
+status
+step
+tool/search name
+latency
+error
+product IDs
+validation_result
+recommendation_result
+```
+
+This produces a minimal operational trail without storing chain-of-thought, raw private messages, or API secrets. The audit log answers questions such as:
+
+- What happened during this decision run?
+- Which search/tool steps ran?
+- Which products were considered?
+- Did validation pass or fail?
+- What recommendation was returned?
+
+### Recommendation Integrity Guardrails
+
+- Product IDs returned by the LLM must exist in the retrieved candidate list.
+- Score values are checked before being accepted.
+- Ranking order is checked for validity.
+- Budget and minimum-rating constraints are enforced deterministically.
+- If the model invents or contradicts authoritative catalog data, the backend rejects or corrects the recommendation and falls back to valid filtered results.
+
+### Reliability & Fallback
+
+- Temporary failures are treated as safe degradation, not silent misinformation.
+- If AI comparison fails or times out, the app shows valid product matches rather than fabricating a recommendation.
+- This keeps the demo operational and gives a clear user-facing fallback message without harming the underlying product search experience.
+
+---
+
+## 4. Data Modeling & Database Design
 
 ### Product Entity (cached from dummyjson)
 
@@ -179,6 +242,17 @@ Notes vs. the original hand-authored schema:
 }
 ```
 
+### Runtime Trust Boundary
+
+The current implementation adds a simple safety layer before and after the LLM call:
+
+1. **Inbound validation**: request fields are sanitized and checked for malformed values, excessive length, invalid price ranges, and unsupported categories.
+2. **Session isolation**: temporary user context is stored in an in-memory TTL store with no persistent profile data.
+3. **Deterministic retrieval**: filtered products come from the catalog cache, which remains the source of truth for authoritative product data.
+4. **LLM comparison**: a trimmed candidate payload is sent to the model, but only after sanitization and without exposing personal or secret data.
+5. **Output validation**: the returned recommendation is checked against product IDs, numeric ranges, rank integrity, and hard constraints before it reaches the UI.
+6. **Fallback**: if validation or the LLM fails, the app returns valid filtered products instead of a fabricated recommendation.
+
 ### Storage Strategy
 
 | Data | Store | Rationale |
@@ -186,6 +260,8 @@ Notes vs. the original hand-authored schema:
 | Product catalog | In-memory list (demo) / SQLite or PostgreSQL (production) | Fetched whole from dummyjson (`limit=0`) at startup — 194 rows fits comfortably in memory; a DB table only pays off once real category/price indexes matter at larger scale |
 | Category list | In-memory list, populated from `GET /products/category-list` | Keeps the UI's dropdown in sync with dummyjson's real slugs instead of a hardcoded, possibly-mismatched list |
 | Conversation history | In-memory dict (demo) / Redis (production) | Short-lived; session-scoped; Redis gives TTL expiry |
+| Session metadata | In-memory TTL store (demo) | Keeps temporary user context but avoids long-term profile retention |
+| Execution audit log | SQLite (`backend/audit.db`) | Stores non-PII execution events with trace/session metadata for debugging and accountability |
 | LLM responses | Not persisted by default | Stateless comparator; re-query if needed |
 | Search index | In-memory filter over the cached list (demo) / Elasticsearch/Meilisearch (production) | At 194 products, linear filtering is sub-millisecond — no indexing engine needed until the catalog grows well past what dummyjson provides |
 
@@ -193,7 +269,7 @@ Notes vs. the original hand-authored schema:
 
 ---
 
-## 4. Solution Architecture, Code Flow & Structure
+## 5. Solution Architecture, Code Flow & Structure
 
 ### High-Level Component Diagram
 
@@ -600,78 +676,3 @@ Shoppers abandon purchase decisions due to choice overload and lack of trust in 
 - **Multi-modal input**: image-based search ("find shoes like this") — dummyjson products already ship `thumbnail`/`images` fields to build against
 - **A/B testing framework**: compare LLM ranking strategies against collaborative filtering
 - **Swap in a real/live product API**: the cache-then-filter architecture built around dummyjson's constraints (no combined filters, no server-side price/rating query) transfers directly to most real e-commerce APIs, which tend to have the same limitations
-
----
-
-## Appendix: Project Structure
-
-```
-Prodapt_AI_shopping_decision_assistant/
-├── README.md
-├── PS.md                          # Problem statement & evaluation criteria
-├── arch.md                        # This document
-├── data/
-│   └── catalog_snapshot.json      # Fallback snapshot of the dummyjson catalog (used if the live API is unreachable)
-├── backend/
-│   ├── main.py                    # FastAPI app entry point
-│   ├── models.py                  # Pydantic request/response models
-│   ├── catalog_loader.py          # Fetches + caches dummyjson products & category list; strips reviewer PII
-│   ├── search.py                  # Search engine (filter + full-text over the cache)
-│   ├── comparator.py              # LLM comparator skill
-│   ├── prompts.py                 # Prompt templates
-│   └── config.py                  # Environment config
-├── frontend/
-│   └── app.py                     # Streamlit UI
-├── tests/
-│   ├── test_catalog_loader.py
-│   ├── test_search.py
-│   ├── test_comparator.py
-│   └── test_api.py
-├── Dockerfile
-├── docker-compose.yml
-└── requirements.txt
-```
-
----
-
-## Appendix: Environment Variables
-
-```bash
-# Required
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Product data source
-DUMMYJSON_BASE_URL=https://dummyjson.com
-CATALOG_REFRESH_INTERVAL_MIN=60      # how often to re-sync from dummyjson
-CATALOG_FALLBACK_SNAPSHOT=data/catalog_snapshot.json
-
-# Optional
-USE_LLM=true
-
-# Backend
-BACKEND_PORT=8000
-CORS_ORIGINS=http://localhost:8501
-
-# Search (production, only if scaling beyond the dummyjson demo dataset)
-MEILISEARCH_URL=http://localhost:7700
-DATABASE_URL=postgresql://user:pass@localhost:5432/products
-```
-
----
-
-## Appendix: Quick Start
-
-```bash
-# Clone and install
-git clone <repo-url>
-cd Prodapt_AI_shopping_decision_assistant
-pip install -r requirements.txt
-
-# Run backend (fetches and caches the dummyjson catalog on startup)
-cd backend && uvicorn main:app --reload
-
-# Run frontend (new terminal)
-cd frontend && streamlit run app.py
-
-# Open http://localhost:8501
-```

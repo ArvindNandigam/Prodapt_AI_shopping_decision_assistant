@@ -136,6 +136,7 @@ class SearchRequest(BaseModel):
     price_max: float = 1_000_000.0
     min_rating: float = 0.0
     session_id: str = ""
+    limit: int = 10
 
 class SearchResponse(BaseModel):
     query: str
@@ -145,9 +146,9 @@ class SearchResponse(BaseModel):
     errors: str | None = None
 
 class ChatRequest(BaseModel):
-    message: str
-    session_id: str
-    context: list[dict[str, str]] = Field(default_factory=list)
+    message: str = ""
+    session_id: str = ""
+    context: list[dict[str, Any]] = Field(default_factory=list)
 
 class ChatResponse(BaseModel):
     reply: str
@@ -159,9 +160,9 @@ class RecommendedProduct(BaseModel):
     rank: int
     reason: str
     tradeoffs: str
+    why_not: str = ""
     pros_llm: list[str] = Field(default_factory=list)
     cons_llm: list[str] = Field(default_factory=list)
-
 class ComparisonResult(BaseModel):
     recommended: list[RecommendedProduct]
     comparison_summary: str

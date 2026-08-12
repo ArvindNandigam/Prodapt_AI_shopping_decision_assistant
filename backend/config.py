@@ -10,13 +10,13 @@ class Settings(BaseSettings):
     )
 
     # Azure OpenAI
-    azure_openai_api_key: str
-    azure_openai_endpoint: str
+    azure_openai_api_key: str = ""
+    azure_openai_endpoint: str = ""
     azure_openai_deployment_name: str = "gpt-5.4-mini"
     azure_openai_api_version: str = "2024-12-01-preview"
 
     # Feature flags
-    use_llm: bool = True
+    use_llm: bool = False
 
     # Search
     search_top_k: int = 10
