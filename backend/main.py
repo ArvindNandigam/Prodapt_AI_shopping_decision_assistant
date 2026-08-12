@@ -164,7 +164,7 @@ async def search_endpoint(req: SearchRequest, request: Request) -> SearchRespons
                 },
             )
 
-    candidates = search(
+    candidates, total_matches = search(
         query=validated["query"],
         category=validated["category"],
         price_min=validated["price_min"],
@@ -184,15 +184,16 @@ async def search_endpoint(req: SearchRequest, request: Request) -> SearchRespons
 
     if not candidates:
         return SearchResponse(
-            results=[],
-            summary="No products match your filters. Try widening your price range or lowering the minimum rating.",
-            applied_filters={
+            query=validated["query"],
+            filters_applied={
                 "query": validated["query"],
                 "category": validated["category"],
                 "price_min": validated["price_min"],
                 "price_max": validated["price_max"],
                 "min_rating": validated["min_rating"],
             },
+            total_matches=0,
+            products=[],
             errors=None,
         )
 
@@ -264,15 +265,16 @@ async def search_endpoint(req: SearchRequest, request: Request) -> SearchRespons
     )
 
     return SearchResponse(
-        results=enriched,
-        summary=summary,
-        applied_filters={
+        query=validated["query"],
+        filters_applied={
             "query": validated["query"],
             "category": validated["category"],
             "price_min": validated["price_min"],
             "price_max": validated["price_max"],
             "min_rating": validated["min_rating"],
         },
+        total_matches=total_matches,
+        products=enriched,
         errors=llm_error,
     )
 

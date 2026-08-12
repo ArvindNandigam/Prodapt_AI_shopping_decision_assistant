@@ -1,19 +1,26 @@
 """Pydantic data models for the shopping assistant."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, List
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Product catalog models (dummyjson shape)
 # ---------------------------------------------------------------------------
 
 class Review(BaseModel):
-    """Only non-PII fields are retained — reviewer name/email are stripped."""
+    """Only non‑PII fields are retained — reviewer name/email are stripped.
+    The API schema requires a placeholder reviewer name.
+    """
     rating: float
     comment: str
+    # Placeholder to satisfy schema while keeping privacy
+    reviewer: str = "Verified Buyer"
 
+class Dimensions(BaseModel):
+    width: float = 0.0
+    height: float = 0.0
+    depth: float = 0.0
 
 class Product(BaseModel):
     id: int
@@ -29,10 +36,14 @@ class Product(BaseModel):
     warrantyInformation: str = ""
     shippingInformation: str = ""
     returnPolicy: str = ""
-    tags: list[str] = Field(default_factory=list)
+    tags: List[str] = Field(default_factory=list)
     sku: str = ""
     thumbnail: str = ""
-    reviews: list[Review] = Field(default_factory=list)
+    reviews: List[Review] = Field(default_factory=list)
+    weight: float = 0.0
+    dimensions: Dimensions = Field(default_factory=Dimensions)
+    images: List[str] = Field(default_factory=list)
+    minimumOrderQuantity: int = 1
     cached_at: str = ""
 
     @classmethod
@@ -43,8 +54,14 @@ class Product(BaseModel):
                 rating=r.get("rating", 0),
                 comment=r.get("comment", ""),
             )
-            for r in raw.get("reviews", [])[:2]  # cap at 2 reviews per prompt
+            for r in raw.get("reviews", [])[:2]
         ]
+        dims_raw = raw.get("dimensions", {})
+        dimensions = Dimensions(
+            width=dims_raw.get("width", 0.0),
+            height=dims_raw.get("height", 0.0),
+            depth=dims_raw.get("depth", 0.0),
+        )
         return cls(
             id=raw["id"],
             title=raw.get("title", ""),
@@ -63,8 +80,50 @@ class Product(BaseModel):
             sku=raw.get("sku", ""),
             thumbnail=raw.get("thumbnail", ""),
             reviews=clean_reviews,
+            weight=raw.get("weight", 0.0),
+            dimensions=dimensions,
+            images=raw.get("images", []),
+            minimumOrderQuantity=raw.get("minimumOrderQuantity", 1),
         )
 
+    def to_schema_dict(self) -> dict[str, Any]:
+        """Serialize to the exact API schema required by the frontend.
+        Converts camelCase fields to snake_case, casts types, and adds derived values.
+        """
+        return {
+            "id": str(self.id),
+            "name": self.title,
+            "brand": self.brand,
+            "sku": self.sku,
+            "category": self.category,
+            "tags": self.tags,
+            "price": self.price,
+            "discount_percentage": self.discountPercentage,
+            "rating": self.rating,
+            "review_count": len(self.reviews),
+            "top_reviews": [
+                {"rating": rev.rating, "comment": rev.comment, "reviewer": rev.reviewer}
+                for rev in self.reviews
+            ],
+            "in_stock": self.stock > 0,
+            "stock_count": self.stock,
+            "availability_status": self.availabilityStatus,
+            "minimum_order_quantity": self.minimumOrderQuantity,
+            "warranty": self.warrantyInformation,
+            "shipping": self.shippingInformation,
+            "return_policy": self.returnPolicy,
+            "weight": self.weight,
+            "dimensions": {
+                "width": self.dimensions.width,
+                "height": self.dimensions.height,
+                "depth": self.dimensions.depth,
+            },
+            "description": self.description,
+            "image": self.thumbnail,
+            "images": self.images,
+            "source": "dummyjson",
+            "url": None,
+        }
 
 # ---------------------------------------------------------------------------
 # API request / response models
@@ -79,6 +138,21 @@ class SearchRequest(BaseModel):
     session_id: str = ""
     limit: int = 10
 
+class SearchResponse(BaseModel):
+    query: str
+    filters_applied: dict[str, Any]
+    total_matches: int
+    products: list[dict[str, Any]]
+    errors: str | None = None
+
+class ChatRequest(BaseModel):
+    message: str = ""
+    session_id: str = ""
+    context: list[dict[str, Any]] = Field(default_factory=list)
+
+class ChatResponse(BaseModel):
+    reply: str
+    session_id: str
 
 class RecommendedProduct(BaseModel):
     id: int
