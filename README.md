@@ -15,6 +15,69 @@ Built with **FastAPI + Streamlit + LangChain 1.3.15 + Azure OpenAI**, using the 
 - **Graceful fallback** — if the LLM is unavailable, raw results sorted by rating are still shown
 - **Catalog caching** — dummyjson is fetched once at startup and cached locally; a snapshot on disk acts as fallback if the API is unreachable
 - **PII protection** — `reviewerName` and `reviewerEmail` are stripped at cache time, before any data reaches a prompt or log
+- **Incognito sessions** — temporary in-memory session state with a 30-minute inactivity TTL; no long-term personal profile or permanent memory
+- **Execution auditing** — SQLite-based trace log captures request lifecycle, tool/search steps, validation outcomes, and recommendation status without storing chain-of-thought or sensitive data
+- **Input guardrails** — request validation for query, category, budget, minimum rating, and result limits
+- **Prompt-injection guardrails** — user text is sanitized and sensitive or override-style phrases are removed before model interaction
+- **Recommendation safety** — the app validates AI output against budget/rating/product constraints and falls back to valid filtered products when needed
+
+---
+
+## Security, Privacy & Reliability
+
+The backend adds a lightweight trust boundary around the existing LangChain workflow so it remains hackathon-friendly while still protecting the demo from obvious misuse.
+
+### Privacy / Incognito
+
+- Temporary session context only: `session_id`, current query, temporary preferences, budget, minimum rating, recent context, and candidate product IDs
+- No persistent user profile is created
+- No names, emails, phones, addresses, or long-term personal preferences are stored
+- Session data expires automatically after 30 minutes of inactivity
+
+### Audit trail / accountability
+
+- A local SQLite database stores execution metadata such as `trace_id`, `session_id`, timestamp, status, step, latency, product identifiers, validation result, and recommendation outcome
+- The audit trail is intentionally non-PII and excludes API keys, passwords, chain-of-thought, and full conversation content
+- This makes it possible to answer: what happened in this agent run, which tool/search steps ran, what succeeded or failed, and what recommendation was returned
+
+### Input and prompt guardrails
+
+- Query length is capped at 200 characters
+- Category length is capped at 100 characters
+- Rating must stay between 0 and 5
+- Price values must remain non-negative
+- `price_min` cannot exceed `price_max`
+- Search limit is capped at 20
+- Prompt-injection style phrases such as override/bypass/security prompt wording are sanitized before the model sees the content
+
+### Recommendation integrity
+
+- LLM output is not trusted blindly
+- The app validates returned products against the retrieved candidate set, score bounds, ranking, and hard constraints
+- If the model invents a product ID, generates invalid numeric values, or violates budget/rating rules, the backend rejects or corrects the result and falls back safely
+
+### Reliability and fallback
+
+- Search and AI operations are wrapped in a safe fallback path
+- If the LLM fails or times out, the app still returns valid filtered products instead of fabricating a recommendation
+- This preserves the user experience while keeping the system safe and explainable
+
+---
+
+## Database & Storage Model
+
+### Runtime storage
+
+- **In-memory session store**: used for temporary chat/search session data with TTL expiry
+- **SQLite audit database**: local file at `backend/audit.db` for non-PII execution logs
+- **Catalog cache**: in-memory list of product data loaded from dummyjson at startup, with a snapshot fallback on disk if the API is unavailable
+
+### Data retention policy
+
+- Session state is short-lived and expires automatically
+- Audit events are stored for operational accountability, not for long-term personal memory
+- No sensitive personal data is recorded or resolved into persistent profile state
+- Product review names/emails are stripped before data enters prompts or logs
 
 ---
 
