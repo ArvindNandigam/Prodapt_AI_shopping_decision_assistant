@@ -196,7 +196,10 @@ def compare(
             comparison_summary="No candidates to compare.",
         )
 
-    if not settings.use_llm:
+    if not settings.llm_enabled:
+        logger.warning(
+            "LLM disabled or Azure OpenAI configuration is missing; using fallback comparison."
+        )
         return _fallback_result(candidates)
 
     trimmed = [_trim_candidate(p) for p in candidates]
@@ -263,6 +266,8 @@ def _fallback_result(candidates: list[dict[str, Any]]) -> ComparisonResult:
                 rank=i + 1,
                 reason="AI comparison unavailable; product included from filtered candidate set.",
                 tradeoffs="Detailed comparison could not be generated at this time.",
+                advantages=[],
+                disadvantages=[],
                 pros_llm=[],
                 cons_llm=[],
             )
@@ -300,12 +305,15 @@ def _parse_llm_output(raw: Any, candidates: list[dict[str, Any]]) -> ComparisonR
         reason = str(item.get("reason", "") or "").strip()
         tradeoffs = str(item.get("tradeoffs", "") or "").strip()
 
-        pros = item.get("pros_llm", []) or []
-        cons = item.get("cons_llm", []) or []
-        if not isinstance(pros, list):
-            pros = []
-        if not isinstance(cons, list):
-            cons = []
+        advantages = item.get("advantages", []) or item.get("pros_llm", []) or []
+        disadvantages = item.get("disadvantages", []) or item.get("cons_llm", []) or []
+        if not isinstance(advantages, list):
+            advantages = []
+        if not isinstance(disadvantages, list):
+            disadvantages = []
+
+        normalized_advantages = [str(x) for x in advantages][:5]
+        normalized_disadvantages = [str(x) for x in disadvantages][:5]
 
         recommended.append(
             RecommendedProduct(
@@ -314,8 +322,10 @@ def _parse_llm_output(raw: Any, candidates: list[dict[str, Any]]) -> ComparisonR
                 rank=rank,
                 reason=reason,
                 tradeoffs=tradeoffs,
-                pros_llm=[str(x) for x in pros][:5],
-                cons_llm=[str(x) for x in cons][:5],
+                advantages=normalized_advantages,
+                disadvantages=normalized_disadvantages,
+                pros_llm=normalized_advantages,
+                cons_llm=normalized_disadvantages,
             )
         )
 

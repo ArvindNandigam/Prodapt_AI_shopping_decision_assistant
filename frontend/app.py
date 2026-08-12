@@ -100,8 +100,8 @@ def render_product_card(product: dict, rank: int) -> None:
     ai_score = product.get("ai_score")
     reason = product.get("reason", "")
     tradeoffs = product.get("tradeoffs", "")
-    pros = product.get("pros_llm", [])
-    cons = product.get("cons_llm", [])
+    pros = product.get("pros_llm") or product.get("advantages") or []
+    cons = product.get("cons_llm") or product.get("disadvantages") or []
 
     with st.container():
         col_img, col_info = st.columns([1, 4])

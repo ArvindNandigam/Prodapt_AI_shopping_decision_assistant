@@ -5,6 +5,7 @@ import pytest
 from unittest.mock import patch
 
 from backend.comparator import _fallback_result, _parse_llm_output, _trim_candidate
+from backend.config import settings
 from backend.models import ComparisonResult
 from langchain_core.exceptions import OutputParserException
 
@@ -107,6 +108,27 @@ class TestParseOutput:
         with pytest.raises(OutputParserException):
             _parse_llm_output(raw, FAKE_CANDIDATES)
 
+    def test_alias_fields_accepted(self):
+        raw = {
+            "recommended": [
+                {
+                    "id": 1,
+                    "score": 0.9,
+                    "rank": 1,
+                    "reason": "Best value",
+                    "tradeoffs": "Pricier",
+                    "advantages": ["great cushioning", "long warranty"],
+                    "disadvantages": ["higher price"],
+                }
+            ],
+            "comparison_summary": "Nike leads on rating.",
+        }
+        result = _parse_llm_output(raw, FAKE_CANDIDATES)
+        assert result.recommended[0].advantages == ["great cushioning", "long warranty"]
+        assert result.recommended[0].disadvantages == ["higher price"]
+        assert result.recommended[0].pros_llm == ["great cushioning", "long warranty"]
+        assert result.recommended[0].cons_llm == ["higher price"]
+
     def test_non_dict_raises(self):
         with pytest.raises(OutputParserException):
             _parse_llm_output("not a dict", FAKE_CANDIDATES)
@@ -123,3 +145,21 @@ class TestTrimCandidate:
         trimmed = _trim_candidate(FAKE_CANDIDATES[0])
         for field in ["id", "title", "price", "rating", "stock", "returnPolicy"]:
             assert field in trimmed
+
+    def test_llm_is_enabled_only_with_azure_credentials(self):
+        original_key = settings.azure_openai_api_key
+        original_endpoint = settings.azure_openai_endpoint
+        original_use_llm = settings.use_llm
+
+        try:
+            settings.azure_openai_api_key = "test-key"
+            settings.azure_openai_endpoint = "https://example.openai.azure.com"
+            settings.use_llm = True
+            assert settings.llm_enabled is True
+
+            settings.azure_openai_api_key = ""
+            assert settings.llm_enabled is False
+        finally:
+            settings.azure_openai_api_key = original_key
+            settings.azure_openai_endpoint = original_endpoint
+            settings.use_llm = original_use_llm

@@ -16,7 +16,12 @@ class Settings(BaseSettings):
     azure_openai_api_version: str = "2024-12-01-preview"
 
     # Feature flags
-    use_llm: bool = False
+    use_llm: bool = True
+
+    @property
+    def llm_enabled(self) -> bool:
+        """Only enable the LLM when credentials and endpoint are actually configured."""
+        return bool(self.use_llm and self.azure_openai_api_key and self.azure_openai_endpoint)
 
     # Search
     search_top_k: int = 10

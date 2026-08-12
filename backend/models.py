@@ -87,6 +87,8 @@ class RecommendedProduct(BaseModel):
     reason: str
     tradeoffs: str
     why_not: str = ""
+    advantages: list[str] = Field(default_factory=list)
+    disadvantages: list[str] = Field(default_factory=list)
     pros_llm: list[str] = Field(default_factory=list)
     cons_llm: list[str] = Field(default_factory=list)
 

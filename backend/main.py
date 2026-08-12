@@ -216,6 +216,12 @@ async def search_endpoint(req: SearchRequest, request: Request) -> SearchRespons
         enriched: list[dict[str, Any]] = []
         for candidate in candidates:
             rec = rec_map.get(candidate["id"])
+            advantages = rec.advantages if rec else []
+            disadvantages = rec.disadvantages if rec else []
+            if not advantages and rec:
+                advantages = rec.pros_llm
+            if not disadvantages and rec:
+                disadvantages = rec.cons_llm
             enriched.append({
                 **candidate,
                 "rank": rec.rank if rec else 999,
@@ -223,8 +229,10 @@ async def search_endpoint(req: SearchRequest, request: Request) -> SearchRespons
                 "reason": rec.reason if rec else None,
                 "tradeoffs": rec.tradeoffs if rec else None,
                 "why_not": rec.why_not if rec else "",
-                "pros_llm": rec.pros_llm if rec else [],
-                "cons_llm": rec.cons_llm if rec else [],
+                "advantages": advantages,
+                "disadvantages": disadvantages,
+                "pros_llm": advantages,
+                "cons_llm": disadvantages,
             })
         enriched.sort(key=lambda x: x.get("rank", 999))
         summary = comparison.comparison_summary
@@ -235,6 +243,8 @@ async def search_endpoint(req: SearchRequest, request: Request) -> SearchRespons
             item["reason"] = "Strong match based on rating and budget fit."
             item["tradeoffs"] = "Limited AI comparison is available; verify specific product details."
             item["why_not"] = "Unknown or unavailable alternative"
+            item["advantages"] = []
+            item["disadvantages"] = []
             item["pros_llm"] = []
             item["cons_llm"] = []
         summary = f"Top {len(enriched)} matches"
