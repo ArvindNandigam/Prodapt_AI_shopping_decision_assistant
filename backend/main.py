@@ -93,17 +93,7 @@ async def get_categories() -> dict[str, list[str]]:
 async def search_endpoint(req: SearchRequest) -> SearchResponse:
     """Search the catalog and return AI-ranked recommendations."""
 
-    # Validate category
-    if req.category:
-        valid_categories = catalog.get_categories()
-        if valid_categories and req.category not in valid_categories:
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "message": f"Unknown category '{req.category}'.",
-                    "valid_categories": valid_categories,
-                },
-            )
+    # Category filter applied directly; unknown categories will result in no matches.
 
     # Validate price range
     if req.price_min < 0 or req.price_max < 0:
@@ -123,15 +113,16 @@ async def search_endpoint(req: SearchRequest) -> SearchResponse:
 
     if not candidates:
         return SearchResponse(
-            results=[],
-            summary="No products match your filters. Try widening your price range or lowering the minimum rating.",
-            applied_filters={
+            query=req.query,
+            filters_applied={
                 "query": req.query,
                 "category": req.category,
                 "price_min": req.price_min,
                 "price_max": req.price_max,
                 "min_rating": req.min_rating,
             },
+            total_matches=0,
+            products=[],
             errors=None,
         )
 
@@ -182,15 +173,16 @@ async def search_endpoint(req: SearchRequest) -> SearchResponse:
             summary += f" with rating ≥ {req.min_rating}"
 
     return SearchResponse(
-        results=enriched,
-        summary=summary,
-        applied_filters={
+        query=req.query,
+        filters_applied={
             "query": req.query,
             "category": req.category,
             "price_min": req.price_min,
             "price_max": req.price_max,
             "min_rating": req.min_rating,
         },
+        total_matches=total_matches,
+        products=enriched,
         errors=llm_error,
     )
 

@@ -1,18 +1,18 @@
-"""Search engine — structured filter + full-text search over the cached catalog.
+# """Search engine — structured filter + full‑text search over the cached catalog.
 
-No external service needed at 194 products; all filtering is local.
-"""
+# No external service needed at ~194 products; all filtering is local.
+# """
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, List, Tuple
 
 from backend.catalog import get_all_products
 from backend.models import Product
 
 
 def _score_text_match(product: Product, query: str) -> float:
-    """Return a simple relevance score (0–1) for full-text matching.
+    """Return a simple relevance score (0–1) for full‑text matching.
 
     Matches against title, description, category, brand, and tags.
     """
@@ -20,7 +20,7 @@ def _score_text_match(product: Product, query: str) -> float:
         return 1.0
 
     q = query.lower()
-    terms = re.split(r"\s+", q.strip())
+    terms = re.split(r"\\s+", q.strip())
 
     fields = [
         product.title.lower(),
@@ -42,17 +42,17 @@ def search(
     price_max: float = 1_000_000.0,
     min_rating: float = 0.0,
     limit: int = 10,
-) -> list[dict[str, Any]]:
-    """Filter the cached catalog and return the top-K products as dicts.
+) -> Tuple[List[dict[str, Any]], int]:
+    """Filter the cached catalog and return the top‑K products.
 
-    Scoring: products that match all filter criteria are sorted by
-    (text_relevance * 0.5) + (normalised_rating * 0.3) + (discount_bonus * 0.2)
-    so the most relevant AND well-rated items surface first.
+    Returns a tuple ``(products, total_matches)`` where ``total_matches`` is the
+    number of items that satisfy the hard filters **before** the ``limit`` is
+    applied.
     """
     products = get_all_products()
 
-    # 1. Hard filters
-    filtered: list[tuple[Product, float]] = []
+    # 1. Hard filters – also count matches before slicing
+    filtered: List[Tuple[Product, float]] = []
     for p in products:
         if category and p.category != category:
             continue
@@ -62,26 +62,19 @@ def search(
             continue
 
         text_score = _score_text_match(p, query)
-        # Only include products with some text relevance (or no query)
         if query and text_score == 0.0:
             continue
 
-        # Composite score
         rating_norm = p.rating / 5.0
-        discount_norm = min(p.discountPercentage / 50.0, 1.0)  # cap at 50% discount
+        discount_norm = min(p.discountPercentage / 50.0, 1.0)
         composite = (text_score * 0.5) + (rating_norm * 0.3) + (discount_norm * 0.2)
-
         filtered.append((p, composite))
+
+    total_matches = len(filtered)
 
     # 2. Sort by composite score descending
     filtered.sort(key=lambda x: x[1], reverse=True)
 
-    # 3. Return top-K as plain dicts (for JSON serialisation)
-    return [
-        {
-            **p.model_dump(exclude={"reviews"}),
-            "reviews": [r.model_dump() for r in p.reviews],
-            "_score": round(score, 4),
-        }
-        for p, score in filtered[:limit]
-    ]
+    # 3. Build product dicts using the schema serializer
+    products_out = [p.to_schema_dict() for p, _ in filtered[:limit]]
+    return products_out, total_matches
