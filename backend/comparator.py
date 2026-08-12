@@ -263,6 +263,8 @@ def _fallback_result(candidates: list[dict[str, Any]]) -> ComparisonResult:
                 rank=i + 1,
                 reason="AI comparison unavailable; product included from filtered candidate set.",
                 tradeoffs="Detailed comparison could not be generated at this time.",
+                advantages=[],
+                disadvantages=[],
                 pros_llm=[],
                 cons_llm=[],
             )
@@ -307,6 +309,9 @@ def _parse_llm_output(raw: Any, candidates: list[dict[str, Any]]) -> ComparisonR
         if not isinstance(cons, list):
             cons = []
 
+        advantages = [str(x) for x in pros][:5]
+        disadvantages = [str(x) for x in cons][:5]
+
         recommended.append(
             RecommendedProduct(
                 id=pid,
@@ -314,8 +319,10 @@ def _parse_llm_output(raw: Any, candidates: list[dict[str, Any]]) -> ComparisonR
                 rank=rank,
                 reason=reason,
                 tradeoffs=tradeoffs,
-                pros_llm=[str(x) for x in pros][:5],
-                cons_llm=[str(x) for x in cons][:5],
+                advantages=advantages,
+                disadvantages=disadvantages,
+                pros_llm=advantages,
+                cons_llm=disadvantages,
             )
         )
 

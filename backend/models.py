@@ -87,8 +87,18 @@ class RecommendedProduct(BaseModel):
     reason: str
     tradeoffs: str
     why_not: str = ""
+    advantages: list[str] = Field(default_factory=list)
+    disadvantages: list[str] = Field(default_factory=list)
     pros_llm: list[str] = Field(default_factory=list)
     cons_llm: list[str] = Field(default_factory=list)
+
+    @property
+    def pros(self) -> list[str]:
+        return self.advantages or self.pros_llm
+
+    @property
+    def cons(self) -> list[str]:
+        return self.disadvantages or self.cons_llm
 
 
 class SearchResponse(BaseModel):

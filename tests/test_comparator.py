@@ -111,6 +111,25 @@ class TestParseOutput:
         with pytest.raises(OutputParserException):
             _parse_llm_output("not a dict", FAKE_CANDIDATES)
 
+    def test_advantages_and_disadvantages_are_exposed(self):
+        raw = {
+            "recommended": [
+                {
+                    "id": 1,
+                    "score": 0.9,
+                    "rank": 1,
+                    "reason": "Best value",
+                    "tradeoffs": "Pricier",
+                    "pros_llm": ["great cushioning"],
+                    "cons_llm": ["heavier than budget pick"],
+                }
+            ],
+            "comparison_summary": "Nike leads on rating; Adidas wins on price.",
+        }
+        result = _parse_llm_output(raw, FAKE_CANDIDATES)
+        assert result.recommended[0].advantages == ["great cushioning"]
+        assert result.recommended[0].disadvantages == ["heavier than budget pick"]
+
 
 class TestTrimCandidate:
     def test_pii_not_in_trimmed(self):
