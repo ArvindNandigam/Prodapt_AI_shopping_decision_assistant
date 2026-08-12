@@ -4,7 +4,7 @@ An AI-powered product comparison assistant that helps users filter, rank, and un
 
 Built with **FastAPI + Streamlit + LangChain 1.3.15 + Azure OpenAI**, using the [dummyjson.com](https://dummyjson.com/docs/products) product catalog (194 SKUs, 24 categories).
 
-# PPT link : https://gamma.app/docs/AI-Shopping-Decision-Assistant-a993i4hlri62t37
+# PPT link : https://gamma.app/docs/AI-Shopping-Decision-Assistant-2f0xoyki6wybf42
 ---
 
 ## Features

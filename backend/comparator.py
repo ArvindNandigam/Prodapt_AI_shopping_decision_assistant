@@ -128,24 +128,47 @@ def _get_first(p: dict[str, Any], keys: list[str], default: Any = None) -> Any:
 
 
 def _trim_candidate(p: dict[str, Any]) -> dict[str, Any]:
+    def _clean_reviews(reviews: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        cleaned: list[dict[str, Any]] = []
+        for review in reviews or []:
+            if not isinstance(review, dict):
+                continue
+            filtered = {
+                key: value
+                for key, value in review.items()
+                if key not in {"reviewerName", "reviewerEmail", "name", "email", "phone", "address"}
+            }
+            if filtered:
+                cleaned.append(filtered)
+        return cleaned[:3]
+
+    title = _get_first(p, ["title", "name"], "")
     return {
         "id": _get_first(p, ["id"]),
-        "name": _get_first(p, ["name", "title"], ""),
+        "title": title,
+        "name": title,
         "brand": _get_first(p, ["brand"], ""),
         "sku": _get_first(p, ["sku"], None),
         "category": _get_first(p, ["category"], ""),
         "tags": p.get("tags") or [],
         "price": _get_first(p, ["price"], None),
-        "discount_percentage": _get_first(p, ["discount_percentage", "discountPercentage"], None),
+        "discountPercentage": _get_first(p, ["discountPercentage", "discount_percentage"], None),
+        "discount_percentage": _get_first(p, ["discountPercentage", "discount_percentage"], None),
         "rating": _get_first(p, ["rating"], None),
         "review_count": _get_first(p, ["review_count", "reviewCount"], 0),
-        "top_reviews": (p.get("top_reviews") or p.get("reviews") or [])[:3],
+        "top_reviews": _clean_reviews((p.get("top_reviews") or p.get("reviews") or [])[:3]),
+        "reviews": _clean_reviews((p.get("top_reviews") or p.get("reviews") or [])[:3]),
         "in_stock": _get_first(p, ["in_stock"], None),
-        "stock_count": _get_first(p, ["stock_count", "stock"], None),
-        "availability_status": _get_first(p, ["availability_status", "availabilityStatus"], None),
-        "warranty": _get_first(p, ["warranty", "warrantyInformation"], None),
-        "shipping": _get_first(p, ["shipping", "shippingInformation"], None),
-        "return_policy": _get_first(p, ["return_policy", "returnPolicy"], None),
+        "stock": _get_first(p, ["stock", "stock_count"], None),
+        "stock_count": _get_first(p, ["stock", "stock_count"], None),
+        "availabilityStatus": _get_first(p, ["availabilityStatus", "availability_status"], None),
+        "availability_status": _get_first(p, ["availabilityStatus", "availability_status"], None),
+        "warrantyInformation": _get_first(p, ["warrantyInformation", "warranty"], None),
+        "warranty": _get_first(p, ["warrantyInformation", "warranty"], None),
+        "shippingInformation": _get_first(p, ["shippingInformation", "shipping"], None),
+        "shipping": _get_first(p, ["shippingInformation", "shipping"], None),
+        "returnPolicy": _get_first(p, ["returnPolicy", "return_policy"], None),
+        "return_policy": _get_first(p, ["returnPolicy", "return_policy"], None),
         "description": _get_first(p, ["description"], None),
         "source": _get_first(p, ["source"], None),
         "url": _get_first(p, ["url"], None),

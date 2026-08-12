@@ -99,9 +99,9 @@ class SearchResponse(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    message: str
-    session_id: str
-    context: list[dict[str, str]] = Field(default_factory=list)
+    message: str = ""
+    session_id: str = ""
+    context: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ChatResponse(BaseModel):
