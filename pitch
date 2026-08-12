@@ -1,0 +1,23 @@
+Good morning.
+
+Today, online shopping gives users more choice than ever, but that choice itself has become a problem. Users often have to compare multiple products across price, ratings, specifications, reviews, availability, and return policies before making a decision. Even after doing all of that, they still don't know why one product is better for their specific needs.
+
+Our AI Shopping Decision Assistant solves this problem.
+
+Instead of simply showing the cheapest or highest-rated product, our system follows a retrieve-first, reason-second approach.
+
+The user provides their natural-language requirement along with structured constraints such as category, budget, and minimum rating. Our backend first performs deterministic filtering to retrieve the most relevant candidates. This makes retrieval fast, predictable, and auditable.
+
+We then pass only the top candidates to our LLM Comparator Skill. The LLM receives the user's intent, constraints, and verified product information and produces a structured comparison containing rankings, advantages, disadvantages, trade-offs, and a recommendation with a clear rationale.
+
+This separation is our key innovation. The deterministic layer decides which products are relevant, while the AI decides how those products should be compared. This reduces unnecessary LLM usage, controls token consumption, reduces hallucination risk, and makes the recommendation easier to explain and debug.
+
+We have also designed the system for reliability. If the LLM fails, the user can still receive the retrieved products. If the external catalogue is unavailable, the system can fall back to cached data. AI enhances the experience without becoming a single point of failure.
+
+From a security perspective, we follow data minimization. Reviewer PII such as names and emails is removed before data reaches the LLM, API keys are kept outside the codebase, inputs are validated, and external review content is treated as untrusted data.
+
+From a business perspective, our solution reduces the time and effort required to make a purchase decision. A faster and more explainable decision can improve customer trust, conversion, and potentially reduce product-related returns and customer-support effort.
+
+Our architecture is also designed to scale from a prototype catalogue to a production e-commerce platform by independently scaling the frontend, retrieval layer, data layer, and AI reasoning layer.
+
+In short: search helps users find products. Our system helps them decide what to buy—and explains why.
