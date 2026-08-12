@@ -77,6 +77,7 @@ class SearchRequest(BaseModel):
     price_max: float = 1_000_000.0
     min_rating: float = 0.0
     session_id: str = ""
+    limit: int = 10
 
 
 class RecommendedProduct(BaseModel):
@@ -85,6 +86,7 @@ class RecommendedProduct(BaseModel):
     rank: int
     reason: str
     tradeoffs: str
+    why_not: str = ""
     pros_llm: list[str] = Field(default_factory=list)
     cons_llm: list[str] = Field(default_factory=list)
 

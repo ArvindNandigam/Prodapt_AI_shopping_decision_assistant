@@ -15,6 +15,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_core.chat_history import InMemoryChatMessageHistory
 
 from backend.config import settings
+from backend.security import sanitize_input, session_store
 
 logger = logging.getLogger(__name__)
 
@@ -98,13 +99,25 @@ def chat(
     If product_context is provided (list of product dicts), it is injected
     into the message as context for the LLM.
     """
+    cleaned_message = sanitize_input(message, 200)
+    if not cleaned_message:
+        return "Message cannot be empty.", session_id or create_session()
+
     if not session_id:
         session_id = create_session()
+
+    session_store.update_session(
+        session_id,
+        {
+            "current_query": cleaned_message,
+            "recent_context": [p.get("id") for p in (product_context or [])[:10]],
+        },
+    )
 
     history = _get_or_create_session(session_id)
 
     # Inject product context if available
-    augmented_message = message
+    augmented_message = cleaned_message
     if product_context:
         context_lines = []
         for p in product_context[:5]:
@@ -115,7 +128,7 @@ def chat(
         context_text = "\n".join(context_lines)
         augmented_message = (
             f"[Current product context for this session:]\n{context_text}\n\n"
-            f"[User question:] {message}"
+            f"[User question:] {cleaned_message}"
         )
 
     history.add_user_message(augmented_message)
